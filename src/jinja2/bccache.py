@@ -215,29 +215,32 @@ class FileSystemBytecodeCache(BytecodeCache):
             )
 
         tmpdir = tempfile.gettempdir()
-
-        # On windows the temporary directory is used specific unless
-        # explicitly forced otherwise.  We can just use that.
+        # Hoist os.getuid() for reuse in multiple places below
+        getuid = getattr(os, "getuid", None)
         if os.name == "nt":
             return tmpdir
-        if not hasattr(os, "getuid"):
+        if getuid is None:
             _unsafe_dir()
 
-        dirname = f"_jinja2-cache-{os.getuid()}"
+        uid = getuid()
+        dirname = f"_jinja2-cache-{uid}"
         actual_dir = os.path.join(tmpdir, dirname)
+        S_IRWXU = stat.S_IRWXU
+        S_ISDIR = stat.S_ISDIR
+        S_IMODE = stat.S_IMODE
 
         try:
-            os.mkdir(actual_dir, stat.S_IRWXU)
+            os.mkdir(actual_dir, S_IRWXU)
         except OSError as e:
             if e.errno != errno.EEXIST:
                 raise
         try:
-            os.chmod(actual_dir, stat.S_IRWXU)
+            os.chmod(actual_dir, S_IRWXU)
             actual_dir_stat = os.lstat(actual_dir)
             if (
-                actual_dir_stat.st_uid != os.getuid()
-                or not stat.S_ISDIR(actual_dir_stat.st_mode)
-                or stat.S_IMODE(actual_dir_stat.st_mode) != stat.S_IRWXU
+                actual_dir_stat.st_uid != uid
+                or not S_ISDIR(actual_dir_stat.st_mode)
+                or S_IMODE(actual_dir_stat.st_mode) != S_IRWXU
             ):
                 _unsafe_dir()
         except OSError as e:
@@ -246,9 +249,9 @@ class FileSystemBytecodeCache(BytecodeCache):
 
         actual_dir_stat = os.lstat(actual_dir)
         if (
-            actual_dir_stat.st_uid != os.getuid()
-            or not stat.S_ISDIR(actual_dir_stat.st_mode)
-            or stat.S_IMODE(actual_dir_stat.st_mode) != stat.S_IRWXU
+            actual_dir_stat.st_uid != uid
+            or not S_ISDIR(actual_dir_stat.st_mode)
+            or S_IMODE(actual_dir_stat.st_mode) != S_IRWXU
         ):
             _unsafe_dir()
 
