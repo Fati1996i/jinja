@@ -131,12 +131,13 @@ class Symbols:
             self.loads.update(sym.loads)
             self.stores.update(sym.stores)
 
+        parent = self.parent
         for name in stores:
             target = self.find_ref(name)
             assert target is not None, "should not happen"
 
-            if self.parent is not None:
-                outer_target = self.parent.find_ref(name)
+            if parent is not None:
+                outer_target = parent.find_ref(name)
                 if outer_target is not None:
                     self.loads[target] = (VAR_LOAD_ALIAS, outer_target)
                     continue
